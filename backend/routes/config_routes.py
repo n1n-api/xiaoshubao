@@ -31,7 +31,7 @@ def create_config_blueprint():
     def get_config():
         """
         获取当前配置
-
+        
         返回：
         - success: 是否成功
         - config: 配置对象
@@ -39,31 +39,46 @@ def create_config_blueprint():
           - image_generation: 图片生成配置
         """
         try:
-            # 读取图片生成配置
-            image_config = _read_config(IMAGE_CONFIG_PATH, {
+            # 1. 尝试从数据库加载
+            from backend.utils.config_manager import config_manager
+            
+            image_providers_data = {}
+            text_providers_data = {}
+            
+            if config_manager.engine:
+                image_providers_data = config_manager.get_config('image_providers') or {}
+                text_providers_data = config_manager.get_config('text_providers') or {}
+            
+            # 2. 读取本地配置文件作为默认值/回退
+            image_config_default = _read_config(IMAGE_CONFIG_PATH, {
                 'active_provider': 'google_genai',
                 'providers': {}
             })
-
-            # 读取文本生成配置
-            text_config = _read_config(TEXT_CONFIG_PATH, {
+            text_config_default = _read_config(TEXT_CONFIG_PATH, {
                 'active_provider': 'google_gemini',
                 'providers': {}
             })
+            
+            # 3. 合并配置（数据库优先）
+            if not image_providers_data:
+                image_providers_data = image_config_default
+            
+            if not text_providers_data:
+                text_providers_data = text_config_default
 
             return jsonify({
                 "success": True,
                 "config": {
                     "text_generation": {
-                        "active_provider": text_config.get('active_provider', ''),
+                        "active_provider": text_providers_data.get('active_provider', ''),
                         "providers": prepare_providers_for_response(
-                            text_config.get('providers', {})
+                            text_providers_data.get('providers', {})
                         )
                     },
                     "image_generation": {
-                        "active_provider": image_config.get('active_provider', ''),
+                        "active_provider": image_providers_data.get('active_provider', ''),
                         "providers": prepare_providers_for_response(
-                            image_config.get('providers', {})
+                            image_providers_data.get('providers', {})
                         )
                     }
                 }

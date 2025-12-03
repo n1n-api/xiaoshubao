@@ -8,10 +8,13 @@ from pathlib import Path
 
 class HistoryService:
     def __init__(self):
-        self.history_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "history"
-        )
+        if os.environ.get('VERCEL'):
+            self.history_dir = "/tmp/history"
+        else:
+            self.history_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                "history"
+            )
         os.makedirs(self.history_dir, exist_ok=True)
 
         self.index_file = os.path.join(self.history_dir, "index.json")

@@ -124,13 +124,18 @@ class Config:
 
         # 验证必要字段
         if not provider_config.get('api_key'):
-            logger.error(f"图片服务商 [{provider_name}] 未配置 API Key")
-            raise ValueError(
-                f"服务商 {provider_name} 未配置 API Key\n"
-                "解决方案：\n"
-                "1. 在系统设置页面编辑该服务商，填写 API Key\n"
-                "2. 或手动在 image_providers.yaml 中添加 api_key 字段"
-            )
+            # Try fallback to environment variable
+            env_key = f"{provider_name.upper()}_API_KEY"
+            if os.environ.get(env_key):
+                provider_config['api_key'] = os.environ.get(env_key)
+            else:
+                logger.error(f"图片服务商 [{provider_name}] 未配置 API Key")
+                raise ValueError(
+                    f"服务商 {provider_name} 未配置 API Key\n"
+                    "解决方案：\n"
+                    "1. 在系统设置页面编辑该服务商，填写 API Key\n"
+                    "2. 或手动在 image_providers.yaml 中添加 api_key 字段"
+                )
 
         provider_type = provider_config.get('type', provider_name)
         if provider_type in ['openai', 'openai_compatible', 'image_api']:

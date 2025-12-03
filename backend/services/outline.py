@@ -77,11 +77,16 @@ class OutlineService:
         provider_config = providers.get(active_provider, {})
 
         if not provider_config.get('api_key'):
-            logger.error(f"文本服务商 [{active_provider}] 未配置 API Key")
-            raise ValueError(
-                f"文本服务商 {active_provider} 未配置 API Key\n"
-                "解决方案：在系统设置页面编辑该服务商，填写 API Key"
-            )
+            # Try fallback to environment variable
+            env_key = f"{active_provider.upper()}_API_KEY"
+            if os.environ.get(env_key):
+                provider_config['api_key'] = os.environ.get(env_key)
+            else:
+                logger.error(f"文本服务商 [{active_provider}] 未配置 API Key")
+                raise ValueError(
+                    f"文本服务商 {active_provider} 未配置 API Key\n"
+                    "解决方案：在系统设置页面编辑该服务商，填写 API Key"
+                )
 
         logger.info(f"使用文本服务商: {active_provider} (type={provider_config.get('type')})")
         return get_text_chat_client(provider_config)

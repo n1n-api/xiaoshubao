@@ -53,10 +53,13 @@ class ImageService:
         self.prompt_template_short = self._load_prompt_template(short=True)
 
         # 历史记录根目录
-        self.history_root_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "history"
-        )
+        if os.environ.get('VERCEL'):
+            self.history_root_dir = "/tmp/history"
+        else:
+            self.history_root_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                "history"
+            )
         os.makedirs(self.history_root_dir, exist_ok=True)
 
         # 当前任务的输出目录（每个任务一个子文件夹）

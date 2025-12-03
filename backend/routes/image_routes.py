@@ -127,10 +127,13 @@ def create_image_blueprint():
             thumbnail = request.args.get('thumbnail', 'true').lower() == 'true'
 
             # 构建 history 目录路径
-            history_root = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                "history"
-            )
+            if os.environ.get('VERCEL'):
+                history_root = "/tmp/history"
+            else:
+                history_root = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                    "history"
+                )
 
             if thumbnail:
                 # 尝试返回缩略图

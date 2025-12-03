@@ -22,7 +22,7 @@ class ConfigManager:
         self.db_url = db_url or os.environ.get("DATABASE_URL")
         self.engine = None
         
-        if self.db_url and SQLAlchemy_AVAILABLE:
+        if self.db_url and SQLALCHEMY_AVAILABLE:
             try:
                 self.engine = create_engine(self.db_url)
                 self._init_db()
@@ -30,12 +30,12 @@ class ConfigManager:
             except Exception as e:
                 logger.error(f"❌ 数据库连接失败: {e}")
                 self.engine = None
-        elif self.db_url and not SQLAlchemy_AVAILABLE:
+        elif self.db_url and not SQLALCHEMY_AVAILABLE:
             logger.error("❌ DATABASE_URL 已配置，但未安装 SQLAlchemy，无法使用数据库")
 
     def _init_db(self):
         """初始化数据库表"""
-        if not self.engine or not SQLAlchemy_AVAILABLE:
+        if not self.engine or not SQLALCHEMY_AVAILABLE:
             return
 
         create_table_sql = """
@@ -59,7 +59,7 @@ class ConfigManager:
     def get_config(self, key: str) -> dict:
         """获取配置"""
         # 1. 尝试从数据库获取
-        if self.engine and SQLAlchemy_AVAILABLE:
+        if self.engine and SQLALCHEMY_AVAILABLE:
             try:
                 with self.engine.connect() as conn:
                     result = conn.execute(
@@ -81,7 +81,7 @@ class ConfigManager:
         yaml_str = yaml.dump(config, allow_unicode=True)
 
         # 1. 保存到数据库
-        if self.engine and SQLAlchemy_AVAILABLE:
+        if self.engine and SQLALCHEMY_AVAILABLE:
             try:
                 with self.engine.connect() as conn:
                     # PostgreSQL upsert

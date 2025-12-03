@@ -1,7 +1,7 @@
 {
   "framework": "vite",
   "buildCommand": "cd frontend && npm install && npm run build",
-  "installCommand": "pip install -r requirements.txt",
+  "installCommand": "mkdir -p packages && pip install -r requirements.txt --target packages",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
@@ -14,6 +14,6 @@
     }
   ],
   "env": {
-    "PYTHONPATH": "."
+    "PYTHONPATH": "packages"
   }
 }

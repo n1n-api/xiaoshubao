@@ -1,6 +1,7 @@
 import logging
 import yaml
 from pathlib import Path
+from backend.utils.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +12,9 @@ class Config:
     PORT = 12398
     CORS_ORIGINS = ['http://localhost:5173', 'http://localhost:3000']
     OUTPUT_DIR = 'output'
+    
+    # 数据库 URL (从环境变量获取)
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
 
     _image_providers_config = None
     _text_providers_config = None
@@ -20,6 +24,14 @@ class Config:
         if cls._image_providers_config is not None:
             return cls._image_providers_config
 
+        # 1. 尝试从数据库加载
+        db_config = config_manager.get_config('image_providers')
+        if db_config:
+            cls._image_providers_config = db_config
+            logger.debug("✅ 从数据库加载图片配置成功")
+            return cls._image_providers_config
+
+        # 2. 回退到文件加载 (本地开发或作为默认值)
         config_path = Path(__file__).parent.parent / 'image_providers.yaml'
         logger.debug(f"加载图片服务商配置: {config_path}")
 
@@ -54,6 +66,14 @@ class Config:
         if cls._text_providers_config is not None:
             return cls._text_providers_config
 
+        # 1. 尝试从数据库加载
+        db_config = config_manager.get_config('text_providers')
+        if db_config:
+            cls._text_providers_config = db_config
+            logger.debug("✅ 从数据库加载文本配置成功")
+            return cls._text_providers_config
+
+        # 2. 回退到文件加载
         config_path = Path(__file__).parent.parent / 'text_providers.yaml'
         logger.debug(f"加载文本服务商配置: {config_path}")
 

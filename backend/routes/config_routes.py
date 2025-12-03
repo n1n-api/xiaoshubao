@@ -93,17 +93,29 @@ def create_config_blueprint():
 
             # 更新图片生成配置
             if 'image_generation' in data:
-                _update_provider_config(
-                    IMAGE_CONFIG_PATH,
-                    data['image_generation']
-                )
+                from backend.utils.config_manager import config_manager
+                
+                # 如果使用数据库，保存到数据库
+                if config_manager.engine:
+                    config_manager.save_config('image_providers', data['image_generation'])
+                else:
+                    _update_provider_config(
+                        IMAGE_CONFIG_PATH,
+                        data['image_generation']
+                    )
 
             # 更新文本生成配置
             if 'text_generation' in data:
-                _update_provider_config(
-                    TEXT_CONFIG_PATH,
-                    data['text_generation']
-                )
+                from backend.utils.config_manager import config_manager
+                
+                # 如果使用数据库，保存到数据库
+                if config_manager.engine:
+                    config_manager.save_config('text_providers', data['text_generation'])
+                else:
+                    _update_provider_config(
+                        TEXT_CONFIG_PATH,
+                        data['text_generation']
+                    )
 
             # 清除配置缓存，确保下次使用时读取新配置
             _clear_config_cache()

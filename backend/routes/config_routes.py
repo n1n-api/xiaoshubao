@@ -70,6 +70,7 @@ def create_config_blueprint():
             })
 
         except Exception as e:
+            logger.error(f"获取配置失败: {str(e)}")
             return jsonify({
                 "success": False,
                 "error": f"获取配置失败: {str(e)}"

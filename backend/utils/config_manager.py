@@ -42,6 +42,10 @@ class ConfigManager:
                 conn.commit()
         except Exception as e:
             logger.error(f"初始化配置表失败: {e}")
+            # 如果初始化失败，可能是权限问题或连接问题，为了不让应用崩溃，我们这里只记录错误
+            # 后续操作会因为表不存在而失败，但应用可以继续运行（回退到文件模式）
+            self.engine = None
+
 
     def get_config(self, key: str) -> dict:
         """获取配置"""

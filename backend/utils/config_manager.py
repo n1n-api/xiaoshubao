@@ -3,10 +3,15 @@ import os
 from urllib.parse import urlparse
 
 import yaml
+
+# 尝试导入 SQLAlchemy，如果失败则提供更详细的调试信息
 try:
+    import sqlalchemy
     from sqlalchemy import create_engine, text
     SQLALCHEMY_AVAILABLE = True
-except ImportError:
+    print(f"SQLAlchemy version: {sqlalchemy.__version__}")
+except ImportError as e:
+    print(f"Error importing SQLAlchemy: {e}")
     create_engine = None
     text = None
     SQLALCHEMY_AVAILABLE = False
@@ -22,6 +27,9 @@ class ConfigManager:
         self.db_url = db_url or os.environ.get("DATABASE_URL")
         self.engine = None
         
+        if self.db_url and self.db_url.startswith("postgres://"):
+            self.db_url = self.db_url.replace("postgres://", "postgresql://", 1)
+
         if self.db_url and SQLALCHEMY_AVAILABLE:
             try:
                 self.engine = create_engine(self.db_url)

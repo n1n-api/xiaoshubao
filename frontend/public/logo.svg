@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF2442;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF6B8B;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background Circle/Shape -->
+  <circle cx="256" cy="256" r="240" fill="url(#grad1)" />
+  
+  <!-- Cute Potato/Mascot Face -->
+  <g transform="translate(100, 120) scale(0.6)">
+    <!-- Body -->
+    <path d="M260 50 C 120 50, 50 180, 50 300 C 50 420, 150 480, 260 480 C 370 480, 470 420, 470 300 C 470 180, 400 50, 260 50 Z" fill="#FFFFFF" />
+    
+    <!-- Eyes -->
+    <ellipse cx="180" cy="250" rx="25" ry="35" fill="#333333" />
+    <ellipse cx="340" cy="250" rx="25" ry="35" fill="#333333" />
+    
+    <!-- Cheeks -->
+    <circle cx="140" cy="320" r="30" fill="#FFB6C1" opacity="0.6" />
+    <circle cx="380" cy="320" r="30" fill="#FFB6C1" opacity="0.6" />
+    
+    <!-- Mouth -->
+    <path d="M220 320 Q 260 360 300 320" stroke="#333333" stroke-width="15" fill="none" stroke-linecap="round" />
+    
+    <!-- Sprout on head -->
+    <path d="M260 50 Q 240 -20 200 0 M 260 50 Q 280 -30 320 -10" stroke="#8FBC8F" stroke-width="15" fill="none" stroke-linecap="round" />
+  </g>
+</svg>
+

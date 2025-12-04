@@ -6,6 +6,17 @@
         <p class="page-subtitle">调整页面顺序，修改文案，打造完美内容</p>
       </div>
       <div style="display: flex; gap: 12px;">
+        <button 
+          v-if="store.recordId"
+          class="btn" 
+          @click="saveOutline" 
+          :disabled="isSaving"
+          style="background: white; border: 1px solid var(--border-color);"
+        >
+          <svg v-if="!isSaving" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          <div v-else class="spinner-small" style="margin-right: 6px;"></div>
+          {{ isSaving ? '保存中...' : '保存修改' }}
+        </button>
         <button class="btn btn-secondary" @click="goBack" style="background: white; border: 1px solid var(--border-color);">
           上一步
         </button>
@@ -75,8 +86,26 @@ import { useGeneratorStore } from '../stores/generator'
 const router = useRouter()
 const store = useGeneratorStore()
 
+const isSaving = ref(false)
 const dragOverIndex = ref<number | null>(null)
 const draggedIndex = ref<number | null>(null)
+
+const saveOutline = async () => {
+  if (!store.recordId) return
+  isSaving.value = true
+  try {
+    const res = await store.updateHistoryRecord()
+    if (res && res.success) {
+      alert('保存成功')
+    } else {
+      alert('保存失败: ' + (res?.error || '未知错误'))
+    }
+  } catch (e: any) {
+    alert('保存失败: ' + e.message)
+  } finally {
+    isSaving.value = false
+  }
+}
 
 const getPageTypeName = (type: string) => {
   const names = {
@@ -283,5 +312,22 @@ const startGeneration = () => {
   font-size: 32px;
   font-weight: 300;
   margin-bottom: 8px;
+}
+
+/* Small Spinner */
+.spinner-small {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #666;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

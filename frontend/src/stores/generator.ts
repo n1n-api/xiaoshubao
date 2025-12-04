@@ -118,10 +118,6 @@ export const useGeneratorStore = defineStore('generator', {
         page.content = content
         // 同步更新 raw 文本
         this.syncRawFromPages()
-        // 更新历史记录
-        if (this.recordId) {
-          this.updateHistoryRecord()
-        }
       }
     },
 
@@ -134,10 +130,6 @@ export const useGeneratorStore = defineStore('generator', {
       })
       // 同步更新 raw 文本
       this.syncRawFromPages()
-      // 更新历史记录
-      if (this.recordId) {
-        this.updateHistoryRecord()
-      }
     },
 
     // 添加页面
@@ -150,10 +142,6 @@ export const useGeneratorStore = defineStore('generator', {
       this.outline.pages.push(newPage)
       // 同步更新 raw 文本
       this.syncRawFromPages()
-      // 更新历史记录
-      if (this.recordId) {
-        this.updateHistoryRecord()
-      }
     },
 
     // 插入页面
@@ -170,10 +158,6 @@ export const useGeneratorStore = defineStore('generator', {
       })
       // 同步更新 raw 文本
       this.syncRawFromPages()
-      // 更新历史记录
-      if (this.recordId) {
-        this.updateHistoryRecord()
-      }
     },
 
     // 移动页面 (拖拽排序)
@@ -190,25 +174,23 @@ export const useGeneratorStore = defineStore('generator', {
       this.outline.pages = pages
       // 同步更新 raw 文本
       this.syncRawFromPages()
-      // 更新历史记录
-      if (this.recordId) {
-        this.updateHistoryRecord()
-      }
     },
 
-    // 内部方法：更新后端历史记录
+    // 手动保存历史记录
     async updateHistoryRecord() {
-      if (!this.recordId) return
+      if (!this.recordId) return { success: false, error: '未关联历史记录' }
       try {
         const { updateHistory } = await import('../api')
-        await updateHistory(this.recordId, {
+        const res = await updateHistory(this.recordId, {
           outline: {
             raw: this.outline.raw,
             pages: this.outline.pages
           }
         })
-      } catch (e) {
-        console.error('自动更新历史记录失败:', e)
+        return { success: res.success, error: res.error }
+      } catch (e: any) {
+        console.error('保存历史记录失败:', e)
+        return { success: false, error: e.message || String(e) }
       }
     },
 

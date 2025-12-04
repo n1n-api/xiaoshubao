@@ -86,6 +86,28 @@ class StorageService:
             logger.error(f"上传文件失败: {e}")
             raise e
 
+    def get_file_url(self, object_name: str) -> str:
+        """
+        获取文件的访问链接 (支持公开域名或预签名URL)
+        """
+        if not self.s3_client:
+            return ""
+
+        if self.config.get('public_domain'):
+            domain = self.config['public_domain'].rstrip('/')
+            return f"{domain}/{object_name}"
+        
+        # 生成预签名 URL (1小时有效)
+        try:
+            return self.s3_client.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': self.config['bucket_name'], 'Key': object_name},
+                ExpiresIn=3600
+            )
+        except Exception as e:
+            logger.error(f"生成预签名 URL 失败: {e}")
+            return ""
+
 # 单例实例
 storage_service = StorageService()
 

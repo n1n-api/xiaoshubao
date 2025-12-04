@@ -94,13 +94,30 @@ async function handleGenerate() {
     if (result.success && result.pages) {
       store.setTopic(topic.value.trim())
       store.setOutline(result.outline || '', result.pages)
-      store.recordId = null
+      store.recordId = null // 先重置
 
       // 保存用户上传的图片到 store
       if (imageFiles.length > 0) {
         store.userImages = imageFiles
       } else {
         store.userImages = []
+      }
+
+      // 立即创建历史记录（草稿状态）
+      try {
+        const { createHistory } = await import('../api')
+        const historyResult = await createHistory(topic.value.trim(), {
+          raw: result.outline || '',
+          pages: result.pages
+        })
+        
+        if (historyResult.success && historyResult.record_id) {
+          store.recordId = historyResult.record_id
+          console.log('自动创建历史记录成功:', historyResult.record_id)
+        }
+      } catch (e) {
+        console.error('自动创建历史记录失败:', e)
+        // 不阻断跳转
       }
 
       // 清理 ComposerInput 的预览

@@ -13,7 +13,7 @@ import os
 import json
 import base64
 import logging
-from flask import Blueprint, request, jsonify, Response, send_file
+from flask import Blueprint, request, jsonify, Response, send_file, redirect
 from backend.services.image import get_image_service
 from .utils import log_request, log_error
 
@@ -128,21 +128,16 @@ def create_image_blueprint():
             if thumbnail:
                 object_name = f"{task_id}/thumb_{filename}"
             
-            # 如果配置了公共域名，直接重定向到公共域名
-            if storage_service.config.get('public_domain'):
-                domain = storage_service.config['public_domain'].rstrip('/')
-                r2_url = f"{domain}/{object_name}"
-                return jsonify({
-                    "redirect": True, 
-                    "url": r2_url
-                }), 302
+            # 获取文件链接（支持公开域名或预签名URL）
+            url = storage_service.get_file_url(object_name)
             
-            # 否则重定向到 R2 默认域名 (注意：通常需要 Bucket 设置为 Public)
-            r2_url = f"{storage_service.config['endpoint_url']}/{storage_service.config['bucket_name']}/{object_name}"
+            if url:
+                return redirect(url)
+            
             return jsonify({
-                "redirect": True, 
-                "url": r2_url
-            }), 302
+                "success": False,
+                "error": "无法获取图片链接，请检查存储配置"
+            }), 500
 
         except Exception as e:
             log_error('/images', e)

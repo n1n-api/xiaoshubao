@@ -67,7 +67,8 @@ class HistoryService:
             json.dump(record, f, ensure_ascii=False, indent=2)
 
         index = self._load_index()
-        index["records"].insert(0, {
+        # 将新记录插入到列表开头
+        new_entry = {
             "id": record_id,
             "title": topic,
             "created_at": now,
@@ -76,7 +77,12 @@ class HistoryService:
             "thumbnail": None,
             "page_count": len(outline.get("pages", [])),
             "task_id": task_id
-        })
+        }
+        
+        if "records" not in index:
+            index["records"] = []
+            
+        index["records"].insert(0, new_entry)
         self._save_index(index)
 
         return record_id

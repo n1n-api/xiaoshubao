@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 import yaml
 from flask import Blueprint, request, jsonify
-from .utils import prepare_providers_for_response
+from .utils import prepare_providers_for_response, mask_api_key
 
 logger = logging.getLogger(__name__)
 

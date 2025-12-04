@@ -59,7 +59,7 @@
     <!-- 版权信息 -->
     <div class="page-footer">
       <div class="footer-copyright">
-        © 2025 <a href="https://github.com/HisMax/RedInk" target="_blank" rel="noopener noreferrer">小薯宝</a> by 默子 (Histone)
+        © 2025 <a href="https://xiaoshubao.me" target="_blank" rel="noopener noreferrer">小薯宝</a>
       </div>
       <div class="footer-license">
         Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a>

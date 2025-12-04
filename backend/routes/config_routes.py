@@ -444,13 +444,15 @@ def _test_image_api(config: dict) -> dict:
 
 def _check_response(result_text: str) -> dict:
     """检查响应是否符合预期"""
-    if "你好" in result_text and "红墨" in result_text:
+    # 放宽检查条件，只要有响应文本就算成功
+    # 很多模型可能不会严格回复"你好，红墨"，而是回复"你好！我是xxx"
+    if result_text and len(result_text.strip()) > 0:
         return {
             "success": True,
             "message": f"连接成功！响应: {result_text[:100]}"
         }
     else:
         return {
-            "success": True,
-            "message": f"连接成功，但响应内容不符合预期: {result_text[:100]}"
+            "success": False,  # 空响应算作失败
+            "message": f"连接成功，但响应内容为空"
         }

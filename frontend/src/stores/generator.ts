@@ -118,14 +118,11 @@ export const useGeneratorStore = defineStore('generator', {
         page.content = content
         // 同步更新 raw 文本
         this.syncRawFromPages()
+        // 更新历史记录
+        if (this.recordId) {
+          this.updateHistoryRecord()
+        }
       }
-    },
-
-    // 根据 pages 重新生成 raw 文本
-    syncRawFromPages() {
-      this.outline.raw = this.outline.pages
-        .map(page => page.content)
-        .join('\n\n<page>\n\n')
     },
 
     // 删除页面
@@ -137,6 +134,10 @@ export const useGeneratorStore = defineStore('generator', {
       })
       // 同步更新 raw 文本
       this.syncRawFromPages()
+      // 更新历史记录
+      if (this.recordId) {
+        this.updateHistoryRecord()
+      }
     },
 
     // 添加页面
@@ -149,6 +150,10 @@ export const useGeneratorStore = defineStore('generator', {
       this.outline.pages.push(newPage)
       // 同步更新 raw 文本
       this.syncRawFromPages()
+      // 更新历史记录
+      if (this.recordId) {
+        this.updateHistoryRecord()
+      }
     },
 
     // 插入页面
@@ -165,6 +170,10 @@ export const useGeneratorStore = defineStore('generator', {
       })
       // 同步更新 raw 文本
       this.syncRawFromPages()
+      // 更新历史记录
+      if (this.recordId) {
+        this.updateHistoryRecord()
+      }
     },
 
     // 移动页面 (拖拽排序)
@@ -181,6 +190,26 @@ export const useGeneratorStore = defineStore('generator', {
       this.outline.pages = pages
       // 同步更新 raw 文本
       this.syncRawFromPages()
+      // 更新历史记录
+      if (this.recordId) {
+        this.updateHistoryRecord()
+      }
+    },
+
+    // 内部方法：更新后端历史记录
+    async updateHistoryRecord() {
+      if (!this.recordId) return
+      try {
+        const { updateHistory } = await import('../api')
+        await updateHistory(this.recordId, {
+          outline: {
+            raw: this.outline.raw,
+            pages: this.outline.pages
+          }
+        })
+      } catch (e) {
+        console.error('自动更新历史记录失败:', e)
+      }
     },
 
     // 开始生成

@@ -20,36 +20,9 @@ class OutlineService:
 
     def _load_text_config(self) -> dict:
         """加载文本生成配置"""
-        config_path = Path(__file__).parent.parent.parent / 'text_providers.yaml'
-        logger.debug(f"加载文本配置: {config_path}")
+        from backend.config import Config
+        return Config.load_text_providers_config()
 
-        if config_path.exists():
-            try:
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    config = yaml.safe_load(f) or {}
-                logger.debug(f"文本配置加载成功: active={config.get('active_provider')}")
-                return config
-            except yaml.YAMLError as e:
-                logger.error(f"文本配置 YAML 解析失败: {e}")
-                raise ValueError(
-                    f"文本配置文件格式错误: text_providers.yaml\n"
-                    f"YAML 解析错误: {e}\n"
-                    "解决方案：检查 YAML 缩进和语法"
-                )
-
-        logger.warning("text_providers.yaml 不存在，使用默认配置")
-        # 默认配置
-        return {
-            'active_provider': 'google_gemini',
-            'providers': {
-                'google_gemini': {
-                    'type': 'google_gemini',
-                    'model': 'gemini-2.0-flash-exp',
-                    'temperature': 1.0,
-                    'max_output_tokens': 8000
-                }
-            }
-        }
 
     def _get_client(self):
         """根据配置获取客户端"""
@@ -151,8 +124,18 @@ class OutlineService:
             active_provider = self.text_config.get('active_provider', 'google_gemini')
             providers = self.text_config.get('providers', {})
             provider_config = providers.get(active_provider, {})
+            provider_type = provider_config.get('type', 'openai_compatible')
 
-            model = provider_config.get('model', 'gemini-2.0-flash-exp')
+            # 根据服务商类型设置默认模型
+            default_model = 'gemini-2.0-flash-exp'
+            if provider_type == 'openai_compatible':
+                default_model = 'gpt-3.5-turbo'
+
+            model = provider_config.get('model')
+            if not model:
+                model = default_model
+                logger.warning(f"未配置模型名称，使用默认模型: {model} (provider_type={provider_type})")
+
             temperature = provider_config.get('temperature', 1.0)
             max_output_tokens = provider_config.get('max_output_tokens', 8000)
 
@@ -226,7 +209,8 @@ class OutlineService:
                     "1. Text API 配置错误或密钥无效\n"
                     "2. 网络连接问题\n"
                     "3. 模型无法访问或不存在\n"
-                    "建议：检查配置文件 text_providers.yaml"
+                    "4. 如果是 Google GenAI，请检查地区限制或代理配置\n"
+                    "建议：检查配置文件 text_providers.yaml 或 数据库配置"
                 )
 
             return {

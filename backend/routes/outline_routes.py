@@ -69,7 +69,10 @@ def create_outline_blueprint():
                 return jsonify(result), 500
 
         except Exception as e:
-            log_error('/outline', e)
+            import traceback
+            error_trace = traceback.format_exc()
+            log_error('/outline', f"{str(e)}\nStack Trace:\n{error_trace}")
+            
             error_msg = str(e)
             return jsonify({
                 "success": False,

@@ -65,6 +65,9 @@ def create_config_blueprint():
             
             if not text_providers_data:
                 text_providers_data = text_config_default
+                
+            # 获取存储配置
+            storage_config = config_manager.get_config('storage_config') or {}
 
             return jsonify({
                 "success": True,
@@ -80,6 +83,12 @@ def create_config_blueprint():
                         "providers": prepare_providers_for_response(
                             image_providers_data.get('providers', {})
                         )
+                    },
+                    "storage": {
+                        "endpoint_url": storage_config.get('endpoint_url', ''),
+                        "access_key_id": mask_api_key(storage_config.get('access_key_id', '')),
+                        "bucket_name": storage_config.get('bucket_name', ''),
+                        "public_domain": storage_config.get('public_domain', '')
                     }
                 }
             })
@@ -95,45 +104,37 @@ def create_config_blueprint():
     def update_config():
         """
         更新配置
-
-        请求体：
-        - image_generation: 图片生成配置（可选）
-        - text_generation: 文本生成配置（可选）
-
-        返回：
-        - success: 是否成功
-        - message: 结果消息
         """
         try:
             data = request.get_json()
+            from backend.utils.config_manager import config_manager
 
             # 更新图片生成配置
             if 'image_generation' in data:
-                from backend.utils.config_manager import config_manager
-                
-                # 如果使用数据库，保存到数据库
                 if config_manager.engine:
                     config_manager.save_config('image_providers', data['image_generation'])
                 else:
-                    _update_provider_config(
-                        IMAGE_CONFIG_PATH,
-                        data['image_generation']
-                    )
+                    _update_provider_config(IMAGE_CONFIG_PATH, data['image_generation'])
 
             # 更新文本生成配置
             if 'text_generation' in data:
-                from backend.utils.config_manager import config_manager
-                
-                # 如果使用数据库，保存到数据库
                 if config_manager.engine:
                     config_manager.save_config('text_providers', data['text_generation'])
                 else:
-                    _update_provider_config(
-                        TEXT_CONFIG_PATH,
-                        data['text_generation']
-                    )
+                    _update_provider_config(TEXT_CONFIG_PATH, data['text_generation'])
+            
+            # 更新存储配置
+            if 'storage' in data and config_manager.engine:
+                storage_data = data['storage']
+                # 如果 access_key_id 是 masked 的，保留原值
+                current_storage = config_manager.get_config('storage_config') or {}
+                if storage_data.get('access_key_id') and '*' in storage_data.get('access_key_id'):
+                     storage_data['access_key_id'] = current_storage.get('access_key_id')
+                     storage_data['secret_access_key'] = current_storage.get('secret_access_key')
+                
+                config_manager.save_config('storage_config', storage_data)
 
-            # 清除配置缓存，确保下次使用时读取新配置
+            # 清除配置缓存
             _clear_config_cache()
 
             return jsonify({

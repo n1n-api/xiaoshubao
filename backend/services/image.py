@@ -84,17 +84,11 @@ class ImageService:
         with open(prompt_path, "r", encoding="utf-8") as f:
             return f.read()
 
+from backend.services.storage import storage_service
+
     def _save_image(self, image_data: bytes, filename: str, task_dir: str = None) -> str:
         """
-        保存图片到本地，同时生成缩略图
-
-        Args:
-            image_data: 图片二进制数据
-            filename: 文件名
-            task_dir: 任务目录（如果为None则使用当前任务目录）
-
-        Returns:
-            保存的文件路径
+        保存图片到本地，上传到 R2，同时生成缩略图
         """
         if task_dir is None:
             task_dir = self.current_task_dir
@@ -102,17 +96,34 @@ class ImageService:
         if task_dir is None:
             raise ValueError("任务目录未设置")
 
-        # 保存原图
+        # 1. 保存到本地 (临时文件，用于生成 zip 等)
         filepath = os.path.join(task_dir, filename)
         with open(filepath, "wb") as f:
             f.write(image_data)
 
-        # 生成缩略图（50KB左右）
+        # 2. 生成缩略图
         thumbnail_data = compress_image(image_data, max_size_kb=50)
         thumbnail_filename = f"thumb_{filename}"
         thumbnail_path = os.path.join(task_dir, thumbnail_filename)
         with open(thumbnail_path, "wb") as f:
             f.write(thumbnail_data)
+            
+        # 3. 上传到 Cloudflare R2 (如果已配置)
+        # 获取 task_id (从路径中提取)
+        task_id = os.path.basename(task_dir)
+        object_name = f"{task_id}/{filename}"
+        
+        try:
+            # 异步上传或同步上传
+            # 这里使用同步上传以确保可靠性，虽然会增加一点延迟
+            # 上传原图
+            storage_service.upload_file(image_data, object_name, 'image/png')
+            # 上传缩略图
+            thumb_object_name = f"{task_id}/{thumbnail_filename}"
+            storage_service.upload_file(thumbnail_data, thumb_object_name, 'image/jpeg')
+            logger.info(f"图片已上传到 R2: {object_name}")
+        except Exception as e:
+            logger.warning(f"上传图片到 R2 失败: {e}")
 
         return filepath
 

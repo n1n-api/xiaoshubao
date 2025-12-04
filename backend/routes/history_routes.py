@@ -15,6 +15,7 @@ import zipfile
 import logging
 from flask import Blueprint, request, jsonify, send_file
 from backend.services.history import get_history_service
+from backend.services.storage import storage_service
 
 logger = logging.getLogger(__name__)
 
@@ -371,16 +372,14 @@ def create_history_blueprint():
                     "error": "该记录没有关联的任务图片"
                 }), 404
 
-            # 获取任务目录
-            task_dir = os.path.join(history_service.history_dir, task_id)
-            if not os.path.exists(task_dir):
+            # 创建内存中的 ZIP 文件
+            try:
+                zip_buffer = _create_images_zip(task_id)
+            except Exception as e:
                 return jsonify({
                     "success": False,
-                    "error": f"任务目录不存在：{task_id}"
-                }), 404
-
-            # 创建内存中的 ZIP 文件
-            zip_buffer = _create_images_zip(task_dir)
+                    "error": f"打包图片失败: {str(e)}"
+                }), 500
 
             # 生成安全的下载文件名
             title = record.get('title', 'images')
@@ -396,6 +395,7 @@ def create_history_blueprint():
 
         except Exception as e:
             error_msg = str(e)
+            logger.error(f"下载失败: {e}")
             return jsonify({
                 "success": False,
                 "error": f"下载失败。\n错误详情: {error_msg}"
@@ -404,36 +404,83 @@ def create_history_blueprint():
     return history_bp
 
 
-def _create_images_zip(task_dir: str) -> io.BytesIO:
+def _create_images_zip(task_id: str) -> io.BytesIO:
     """
-    创建包含所有图片的 ZIP 文件
+    创建包含所有图片的 ZIP 文件 (从 R2 下载)
 
     Args:
-        task_dir: 任务目录路径
+        task_id: 任务 ID
 
     Returns:
         io.BytesIO: 内存中的 ZIP 文件
     """
     memory_file = io.BytesIO()
 
+    # 列出任务下的所有文件
+    # 存储路径为 {task_id}/{filename}
+    prefix = f"{task_id}/"
+    object_keys = storage_service.list_objects(prefix)
+
+    if not object_keys:
+        # 如果 R2 没找到，可能是在旧版本本地存储
+        # 尝试回退到本地查找 (可选，如果需要兼容旧数据)
+        # 这里直接抛出异常，因为我们主要关注 R2
+        # 但为了稳健性，可以检查一下是否为空
+        pass 
+        # 如果真的为空，返回空的 zip 或者抛错？
+        # raise Exception(f"未找到任务相关的图片: {task_id}")
+
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
-        # 遍历任务目录中的所有图片（排除缩略图）
-        for filename in os.listdir(task_dir):
-            # 跳过缩略图文件
-            if filename.startswith('thumb_'):
-                continue
+        # 如果 object_keys 为空，这里循环不执行，返回空 zip
+        if object_keys:
+            for key in object_keys:
+                filename = key.split('/')[-1]
+                
+                # 跳过缩略图
+                if filename.startswith('thumb_'):
+                    continue
 
-            if filename.endswith(('.png', '.jpg', '.jpeg')):
-                file_path = os.path.join(task_dir, filename)
+                if filename.endswith(('.png', '.jpg', '.jpeg')):
+                    try:
+                        # 从 R2 下载文件内容
+                        file_data = storage_service.download_file(key)
+                        
+                        # 生成归档文件名（page_N.png 格式）
+                        try:
+                            index = int(filename.split('.')[0])
+                            archive_name = f"page_{index + 1}.png"
+                        except ValueError:
+                            archive_name = filename
 
-                # 生成归档文件名（page_N.png 格式）
-                try:
-                    index = int(filename.split('.')[0])
-                    archive_name = f"page_{index + 1}.png"
-                except ValueError:
-                    archive_name = filename
+                        zf.writestr(archive_name, file_data)
+                    except Exception as e:
+                        logger.error(f"下载文件并添加到 ZIP 失败: {key}, error: {e}")
+                        continue
+        else:
+            # 如果 R2 中没有，尝试检查本地（兼容旧数据）
+            history_service = get_history_service()
+            task_dir = os.path.join(history_service.history_dir, task_id)
+            if os.path.exists(task_dir):
+                logger.info(f"R2 中未找到图片，尝试从本地目录读取: {task_dir}")
+                for filename in os.listdir(task_dir):
+                     # 跳过缩略图文件
+                    if filename.startswith('thumb_'):
+                        continue
 
-                zf.write(file_path, archive_name)
+                    if filename.endswith(('.png', '.jpg', '.jpeg')):
+                        file_path = os.path.join(task_dir, filename)
+                        try:
+                            # 生成归档文件名（page_N.png 格式）
+                            try:
+                                index = int(filename.split('.')[0])
+                                archive_name = f"page_{index + 1}.png"
+                            except ValueError:
+                                archive_name = filename
+                            
+                            with open(file_path, 'rb') as f:
+                                zf.writestr(archive_name, f.read())
+                        except Exception as e:
+                             logger.error(f"读取本地文件失败: {filename}, error: {e}")
 
     # 将指针移到开始位置
     memory_file.seek(0)

@@ -108,6 +108,48 @@ class StorageService:
             logger.error(f"生成预签名 URL 失败: {e}")
             return ""
 
+    def list_objects(self, prefix: str) -> list:
+        """
+        列出指定前缀下的所有对象
+        """
+        if not self.s3_client:
+            logger.error("R2 未配置，无法列出对象")
+            return []
+
+        try:
+            response = self.s3_client.list_objects_v2(
+                Bucket=self.config['bucket_name'],
+                Prefix=prefix
+            )
+            
+            objects = []
+            if 'Contents' in response:
+                for obj in response['Contents']:
+                    objects.append(obj['Key'])
+            
+            return objects
+        except ClientError as e:
+            logger.error(f"列出对象失败: {e}")
+            return []
+
+    def download_file(self, object_name: str) -> bytes:
+        """
+        下载文件内容
+        """
+        if not self.s3_client:
+            logger.error("R2 未配置，无法下载文件")
+            raise Exception("R2存储服务未配置")
+
+        try:
+            response = self.s3_client.get_object(
+                Bucket=self.config['bucket_name'],
+                Key=object_name
+            )
+            return response['Body'].read()
+        except ClientError as e:
+            logger.error(f"下载文件失败: {e}")
+            raise e
+
 # 单例实例
 storage_service = StorageService()
 

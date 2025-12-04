@@ -130,6 +130,7 @@ def create_image_blueprint():
             
             # 获取文件链接（支持公开域名或预签名URL）
             url = storage_service.get_file_url(object_name)
+            # logger.debug(f"Generated URL for {object_name}: {url}")
             
             if url:
                 return redirect(url)

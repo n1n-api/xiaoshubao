@@ -98,12 +98,15 @@ class HistoryService:
             
             if images is not None:
                 # 合并或替换 images 字段
-                current_images = record.images or {}
+                # 注意：必须创建新字典以触发 SQLAlchemy 的变更检测
+                current_images = dict(record.images or {})
+                
                 if "task_id" in images:
                     current_images["task_id"] = images["task_id"]
                     record.task_id = images["task_id"]
                 if "generated" in images:
                     current_images["generated"] = images["generated"]
+                
                 record.images = current_images
 
             if status is not None:

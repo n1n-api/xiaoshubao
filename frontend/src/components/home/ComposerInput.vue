@@ -13,11 +13,20 @@
         :value="modelValue"
         @input="handleInput"
         class="composer-textarea"
-        placeholder="输入主题，例如：秋季显白美甲..."
+        placeholder="输入你的灵感，例如：秋季显白美甲、周末探店、减脂餐..."
         @keydown.enter.prevent="handleEnter"
         :disabled="loading"
         rows="1"
       ></textarea>
+    </div>
+
+    <!-- 灵感气泡提示 -->
+    <div class="inspiration-bubbles" v-if="!modelValue && uploadedImages.length === 0">
+      <span class="bubble-label">试试输入：</span>
+      <button class="bubble-item" @click="applyInspiration('平价口红推荐')">💄 平价口红</button>
+      <button class="bubble-item" @click="applyInspiration('周末去哪玩')">🗺️ 周末去哪玩</button>
+      <button class="bubble-item" @click="applyInspiration('沉浸式护肤')">🧖‍♀️ 沉浸式护肤</button>
+      <button class="bubble-item" @click="applyInspiration('懒人减脂餐')">🥗 懒人减脂餐</button>
     </div>
 
     <!-- 已上传图片预览 -->
@@ -36,7 +45,7 @@
         </button>
       </div>
       <div class="upload-hint">
-        这些图片将用于生成封面和内容参考
+        已添加参考图，AI将提取图片风格与内容
       </div>
     </div>
 
@@ -67,7 +76,7 @@
           :disabled="!modelValue.trim() || loading"
         >
           <span v-if="loading" class="spinner-sm"></span>
-          <span v-else>生成大纲</span>
+          <span v-else>✨ 唤醒灵感</span>
         </button>
       </div>
     </div>
@@ -83,6 +92,7 @@ import { ref, onUnmounted } from 'vue'
  * 功能：
  * - 主题文本输入（自动调整高度）
  * - 参考图片上传（最多5张）
+ * - 灵感气泡提示
  * - 生成按钮
  */
 
@@ -118,6 +128,21 @@ function handleInput(event: Event) {
   const target = event.target as HTMLTextAreaElement
   emit('update:modelValue', target.value)
   adjustHeight()
+}
+
+/**
+ * 应用灵感提示
+ */
+function applyInspiration(text: string) {
+  emit('update:modelValue', text)
+  // 聚焦并自动调整高度
+  if (textareaRef.value) {
+    textareaRef.value.focus()
+    // 微小延迟确保值更新后计算高度
+    setTimeout(() => {
+      adjustHeight()
+    }, 0)
+  }
 }
 
 /**
@@ -210,22 +235,28 @@ defineExpose({
 .composer-container {
   background: white;
   border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.composer-container:focus-within {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary-fade);
 }
 
 /* 输入区域 */
 .composer-input-wrapper {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 14px;
 }
 
 .search-icon-static {
   flex-shrink: 0;
-  padding-top: 8px;
-  color: #999;
+  padding-top: 10px;
+  color: var(--text-placeholder);
 }
 
 .composer-textarea {
@@ -237,18 +268,53 @@ defineExpose({
   resize: none;
   min-height: 44px;
   max-height: 200px;
-  padding: 8px 0;
+  padding: 10px 0;
   font-family: inherit;
-  color: var(--text-main, #1a1a1a);
+  color: var(--text-main);
+  background: transparent;
 }
 
 .composer-textarea::placeholder {
-  color: #999;
+  color: var(--text-placeholder);
 }
 
 .composer-textarea:disabled {
   background: transparent;
-  color: #999;
+  color: var(--text-placeholder);
+}
+
+/* 灵感气泡 */
+.inspiration-bubbles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: 38px; /* 对齐输入框文字 */
+  margin-top: 4px;
+  margin-bottom: 8px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.bubble-label {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.bubble-item {
+  background: #F7F8FA;
+  border: 1px solid transparent;
+  border-radius: 100px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bubble-item:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: rgba(255, 36, 66, 0.1);
 }
 
 /* 已上传图片预览 */
@@ -301,13 +367,13 @@ defineExpose({
 }
 
 .remove-image-btn:hover {
-  background: var(--primary, #ff2442);
+  background: var(--primary);
 }
 
 .upload-hint {
   flex: 1;
   font-size: 12px;
-  color: var(--text-sub, #666);
+  color: var(--text-sub);
   text-align: right;
 }
 
@@ -317,8 +383,8 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
+  padding-top: 16px;
+  border-top: 1px solid #f4f4f4;
 }
 
 .toolbar-left {
@@ -334,21 +400,21 @@ defineExpose({
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: #f5f5f5;
+  background: #F7F8FA;
   border: none;
   cursor: pointer;
-  color: #666;
+  color: var(--text-sub);
   transition: all 0.2s;
 }
 
 .tool-btn:hover {
   background: #eee;
-  color: var(--primary, #ff2442);
+  color: var(--text-main);
 }
 
 .tool-btn.active {
-  background: rgba(255, 36, 66, 0.1);
-  color: var(--primary, #ff2442);
+  background: var(--primary-light);
+  color: var(--primary);
 }
 
 .badge-count {
@@ -357,7 +423,7 @@ defineExpose({
   right: -4px;
   min-width: 18px;
   height: 18px;
-  background: var(--primary, #ff2442);
+  background: var(--primary);
   color: white;
   border-radius: 9px;
   font-size: 11px;
@@ -366,21 +432,37 @@ defineExpose({
   align-items: center;
   justify-content: center;
   padding: 0 4px;
+  border: 2px solid white;
 }
 
 /* 生成按钮 */
 .generate-btn {
-  padding: 10px 24px;
+  padding: 10px 28px;
   font-size: 15px;
   border-radius: 100px;
   display: flex;
   align-items: center;
   gap: 8px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(255, 36, 66, 0.2);
+}
+
+.generate-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(255, 36, 66, 0.3);
 }
 
 .generate-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* 加载动画 */
@@ -397,5 +479,10 @@ defineExpose({
   to {
     transform: rotate(360deg);
   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

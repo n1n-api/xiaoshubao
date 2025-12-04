@@ -3,7 +3,7 @@
   <div class="showcase-background" :class="{ 'is-ready': isReady }">
     <div class="showcase-grid" :style="{ transform: `translateY(-${scrollOffset}px)` }">
       <div v-for="(image, index) in showcaseImages" :key="index" class="showcase-item">
-        <img :src="`/assets/showcase/${image}`" :alt="`封面 ${index + 1}`" loading="eager" />
+        <img :src="`/assets/showcase/${image}`" :alt="`小薯宝封面 ${index + 1}`" loading="eager" />
       </div>
     </div>
     <div class="showcase-overlay"></div>
@@ -94,13 +94,13 @@ function startScrollAnimation(originalCount: number) {
   const sectionHeight = totalRows * rowHeight
 
   scrollInterval = setInterval(() => {
-    scrollOffset.value += 1
-
+    scrollOffset.value += 0.8 // 降低滚动速度，显得更优雅
+    
     // 滚动到第二组末尾时重置到第一组开始位置
     if (scrollOffset.value >= sectionHeight) {
       scrollOffset.value = 0
     }
-  }, 30) // 每30ms移动1px，实现流畅滚动
+  }, 30)
 }
 
 onMounted(() => {
@@ -125,7 +125,8 @@ onUnmounted(() => {
   z-index: -1;
   overflow: hidden;
   opacity: 0;
-  transition: opacity 0.6s ease-out;
+  transition: opacity 0.8s ease-out;
+  background: #FFF0F2; /* 兜底背景色 */
 }
 
 .showcase-background.is-ready {
@@ -148,7 +149,13 @@ onUnmounted(() => {
   aspect-ratio: 3 / 4;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  background: white;
+  transition: transform 0.3s ease;
+}
+
+.showcase-item:hover {
+  transform: scale(1.02);
 }
 
 .showcase-item img {
@@ -158,7 +165,7 @@ onUnmounted(() => {
   display: block;
 }
 
-/* 毛玻璃遮罩层 */
+/* 毛玻璃遮罩层 - 调整为更暖的色调 */
 .showcase-overlay {
   position: absolute;
   top: 0;
@@ -167,11 +174,11 @@ onUnmounted(() => {
   bottom: 0;
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.7) 0%,
-    rgba(255, 255, 255, 0.65) 30%,
-    rgba(255, 255, 255, 0.6) 100%
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.75) 40%,
+    rgba(255, 240, 242, 0.9) 100%
   );
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
 }
 
 /* 响应式布局 */
@@ -180,6 +187,15 @@ onUnmounted(() => {
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
     padding: 12px;
+  }
+  
+  .showcase-overlay {
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 255, 255, 0.8) 50%,
+      rgba(255, 240, 242, 0.95) 100%
+    );
   }
 }
 </style>

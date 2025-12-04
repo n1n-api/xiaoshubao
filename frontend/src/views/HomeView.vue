@@ -8,13 +8,15 @@
       <div class="hero-content">
         <div class="brand-pill">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-          AI 驱动的小薯宝创作助手
+          拒绝无效更新，10秒生成“爆款笔记”
         </div>
-        <div class="platform-slogan">
-          让传播不再需要门槛，让创作从未如此简单
-        </div>
-        <h1 class="page-title">灵感一触即发</h1>
-        <p class="page-subtitle">输入你的创意主题，让 AI 帮你生成爆款标题、正文和封面图</p>
+        <h1 class="page-title">
+          懂流量的AI<br/>
+          更懂你的<span class="highlight-text">创作焦虑</span>
+        </h1>
+        <p class="page-subtitle">
+          “小薯宝”为你破解流量密码。从吸睛封面到神仙文案，一键解锁博主视角的流量收割机。
+        </p>
       </div>
 
       <!-- 主题输入组合框 -->
@@ -25,6 +27,33 @@
         @generate="handleGenerate"
         @imagesChange="handleImagesChange"
       />
+    </div>
+    
+    <!-- 痛点直击板块 -->
+    <div class="features-section">
+      <div class="feature-card soft-red">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+        </div>
+        <h3>“标题废”救星</h3>
+        <p>还在写“好用的护肤品”？太土了！小薯宝帮你改成“<strong>妈耶！熬夜党直接锁死！这瓶精华我是跪着推的😭</strong>”。</p>
+      </div>
+      
+      <div class="feature-card soft-yellow">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        </div>
+        <h3>“封面丑”终结者</h3>
+        <p>内容满分，封面劝退？AI 自动匹配高颜值、杂志感封面，让路人忍不住点进来。</p>
+      </div>
+      
+      <div class="feature-card soft-green">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+        </div>
+        <h3>“断更”治疗仪</h3>
+        <p>没有灵感？随便扔个词，我们还你一篇万赞潜力的种草文，彻底告别灵感枯竭。</p>
+      </div>
     </div>
 
     <!-- 版权信息 -->
@@ -157,34 +186,112 @@ async function handleGenerate() {
 }
 
 .hero-content {
-  margin-bottom: 36px;
+  margin-bottom: 42px;
 }
 
 .brand-pill {
-  display: inline-block;
-  padding: 6px 16px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 20px;
   background: rgba(255, 36, 66, 0.08);
   color: var(--primary);
   border-radius: 100px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   letter-spacing: 0.5px;
 }
 
-.platform-slogan {
-  font-size: 20px;
-  font-weight: 600;
+.page-title {
+  font-size: 48px;
+  line-height: 1.2;
+  font-weight: 800;
   color: var(--text-main);
-  margin-bottom: 24px;
-  line-height: 1.6;
-  letter-spacing: 0.5px;
+  margin-bottom: 20px;
+  letter-spacing: -1px;
+}
+
+.highlight-text {
+  background: linear-gradient(120deg, #ff9a9e 0%, #fecfef 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+}
+
+.highlight-text::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 36, 66, 0.1);
+  z-index: -1;
+  border-radius: 4px;
 }
 
 .page-subtitle {
-  font-size: 16px;
+  font-size: 18px;
   color: var(--text-sub);
   margin-top: 12px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+/* Features Section */
+.features-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 60px;
+  padding: 0 20px;
+  animation: slideUp 0.6s ease-out 0.2s backwards;
+}
+
+.feature-card {
+  background: white;
+  border-radius: 20px;
+  padding: 32px 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+}
+
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.06);
+}
+
+.feature-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 24px;
+}
+
+.feature-card.soft-red .feature-icon { background: #FFF0F2; color: var(--primary); }
+.feature-card.soft-yellow .feature-icon { background: #FFF9C4; color: #F57F17; }
+.feature-card.soft-green .feature-icon { background: #E8F5E9; color: #2E7D32; }
+
+.feature-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 12px;
+}
+
+.feature-card p {
+  font-size: 14px;
+  color: var(--text-sub);
+  line-height: 1.6;
 }
 
 /* Page Footer */
@@ -252,5 +359,20 @@ async function handleGenerate() {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .features-section {
+    grid-template-columns: 1fr;
+  }
+  
+  .page-title {
+    font-size: 36px;
+  }
+  
+  .hero-section {
+    padding: 30px 20px;
+  }
 }
 </style>

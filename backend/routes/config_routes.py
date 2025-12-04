@@ -111,17 +111,75 @@ def create_config_blueprint():
 
             # 更新图片生成配置
             if 'image_generation' in data:
+                new_data = data['image_generation']
                 if config_manager.engine:
-                    config_manager.save_config('image_providers', data['image_generation'])
+                    # 数据库模式：需要合并逻辑
+                    # 1. 读取旧配置
+                    old_data = config_manager.get_config('image_providers') or {}
+                    
+                    # 2. 合并 active_provider
+                    if 'active_provider' in new_data:
+                        old_data['active_provider'] = new_data['active_provider']
+                    
+                    # 3. 合并 providers
+                    if 'providers' in new_data:
+                        old_providers = old_data.get('providers', {})
+                        new_providers = new_data['providers']
+                        
+                        for name, new_provider_config in new_providers.items():
+                            # 如果新配置的 api_key 为空/假值，保留旧的
+                            if not new_provider_config.get('api_key'):
+                                if name in old_providers and old_providers[name].get('api_key'):
+                                    new_provider_config['api_key'] = old_providers[name]['api_key']
+                                else:
+                                    # 如果旧的也没有，删除这个键，避免存入 null/空串
+                                    new_provider_config.pop('api_key', None)
+                            
+                            # 移除不需要保存的字段
+                            new_provider_config.pop('api_key_masked', None)
+                            new_provider_config.pop('api_key_env', None)
+
+                        old_data['providers'] = new_providers
+                    
+                    config_manager.save_config('image_providers', old_data)
                 else:
-                    _update_provider_config(IMAGE_CONFIG_PATH, data['image_generation'])
+                    _update_provider_config(IMAGE_CONFIG_PATH, new_data)
 
             # 更新文本生成配置
             if 'text_generation' in data:
+                new_data = data['text_generation']
                 if config_manager.engine:
-                    config_manager.save_config('text_providers', data['text_generation'])
+                    # 数据库模式：需要合并逻辑
+                    # 1. 读取旧配置
+                    old_data = config_manager.get_config('text_providers') or {}
+                    
+                    # 2. 合并 active_provider
+                    if 'active_provider' in new_data:
+                        old_data['active_provider'] = new_data['active_provider']
+                    
+                    # 3. 合并 providers
+                    if 'providers' in new_data:
+                        old_providers = old_data.get('providers', {})
+                        new_providers = new_data['providers']
+                        
+                        for name, new_provider_config in new_providers.items():
+                            # 如果新配置的 api_key 为空/假值，保留旧的
+                            if not new_provider_config.get('api_key'):
+                                if name in old_providers and old_providers[name].get('api_key'):
+                                    new_provider_config['api_key'] = old_providers[name]['api_key']
+                                else:
+                                    # 如果旧的也没有，删除这个键
+                                    new_provider_config.pop('api_key', None)
+
+                            # 移除不需要保存的字段
+                            new_provider_config.pop('api_key_masked', None)
+                            new_provider_config.pop('api_key_env', None)
+
+                        old_data['providers'] = new_providers
+
+                    config_manager.save_config('text_providers', old_data)
                 else:
-                    _update_provider_config(TEXT_CONFIG_PATH, data['text_generation'])
+                    _update_provider_config(TEXT_CONFIG_PATH, new_data)
             
             # 更新存储配置
             if 'storage' in data and config_manager.engine:

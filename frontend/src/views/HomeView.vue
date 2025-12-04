@@ -33,26 +33,47 @@
     <div class="features-section">
       <div class="feature-card soft-red">
         <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12h5"></path><path d="M17 12h5"></path>
+            <path d="M9 9s1.5-5 3-5 3 5 3 5"></path>
+            <path d="M8 21s1.5 2 4 2 4-2 4-2"></path>
+            <path d="M15 16.5a5 5 0 0 1-6 0"></path>
+            <circle cx="9" cy="11" r="1" fill="currentColor"></circle>
+            <circle cx="15" cy="11" r="1" fill="currentColor"></circle>
+          </svg>
         </div>
-        <h3>“标题废”救星</h3>
-        <p>还在写“好用的护肤品”？太土了！小薯宝帮你改成“<strong>妈耶！熬夜党直接锁死！这瓶精华我是跪着推的😭</strong>”。</p>
+        <h3>“憋半天写不出标题？”</h3>
+        <p>别再用“好物分享”糊弄了。小薯宝给你 10 个那种...让人看一眼就想点进去的神仙标题。</p>
       </div>
       
       <div class="feature-card soft-yellow">
         <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="13.5" cy="6.5" r="2.5"></circle>
+            <path d="M20.4 14a5 5 0 0 0-6.6-2.4"></path>
+            <path d="M2 13.5V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path>
+            <path d="m2 16.5 6-4 2 1.5"></path>
+          </svg>
         </div>
-        <h3>“封面丑”终结者</h3>
-        <p>内容满分，封面劝退？AI 自动匹配高颜值、杂志感封面，让路人忍不住点进来。</p>
+        <h3>“图拍得挺好，排版毁所有？”</h3>
+        <p>不懂配色？不会P图？没关系，AI 自动帮你配好杂志级封面，审美在线，张张能打。</p>
       </div>
       
       <div class="feature-card soft-green">
         <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v4"></path>
+            <path d="m16.2 7.8 2.9-2.9"></path>
+            <path d="M18 12h4"></path>
+            <path d="m16.2 16.2 2.9 2.9"></path>
+            <path d="M12 18v4"></path>
+            <path d="m4.9 19.1 2.9-2.9"></path>
+            <path d="M2 12h4"></path>
+            <path d="m4.9 4.9 2.9 2.9"></path>
+          </svg>
         </div>
-        <h3>“断更”治疗仪</h3>
-        <p>没有灵感？随便扔个词，我们还你一篇万赞潜力的种草文，彻底告别灵感枯竭。</p>
+        <h3>“想日更，但脑子空空？”</h3>
+        <p>灵感枯竭的时候，随便扔个词给我。从选题到正文，喂到嘴边的保姆级服务。</p>
       </div>
     </div>
 

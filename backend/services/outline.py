@@ -126,15 +126,13 @@ class OutlineService:
             provider_config = providers.get(active_provider, {})
             provider_type = provider_config.get('type', 'openai_compatible')
 
-            # 根据服务商类型设置默认模型
-            default_model = 'gemini-2.0-flash-exp'
-            if provider_type == 'openai_compatible':
-                default_model = 'gpt-3.5-turbo'
-
             model = provider_config.get('model')
             if not model:
-                model = default_model
-                logger.warning(f"未配置模型名称，使用默认模型: {model} (provider_type={provider_type})")
+                logger.error(f"未配置模型名称 (provider={active_provider})")
+                raise ValueError(
+                    f"文本生成服务商 [{active_provider}] 未配置模型名称 (model)。\n"
+                    "解决方案：请在“系统设置 -> 文本生成 -> 服务商配置”中填写模型名称（例如：gpt-4o, deepseek-chat, gemini-2.0-flash 等）。"
+                )
 
             temperature = provider_config.get('temperature', 1.0)
             max_output_tokens = provider_config.get('max_output_tokens', 8000)

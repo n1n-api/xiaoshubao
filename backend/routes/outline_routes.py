@@ -7,8 +7,11 @@
 
 import time
 import base64
+import json
 import logging
-from flask import Blueprint, request, jsonify
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from flask import Blueprint, request, Response, stream_with_context
 from backend.services.outline import get_outline_service
 from .utils import log_request, log_error
 
@@ -23,61 +26,66 @@ def create_outline_blueprint():
     def generate_outline():
         """
         生成大纲（支持图片上传）
-
-        请求格式：
-        1. multipart/form-data（带图片文件）
-           - topic: 主题文本
-           - images: 图片文件列表
-
-        2. application/json（无图片或 base64 图片）
-           - topic: 主题文本
-           - images: base64 编码的图片数组（可选）
-
-        返回：
-        - success: 是否成功
-        - outline: 原始大纲文本
-        - pages: 解析后的页面列表
+        
+        改为 SSE 流式响应以防止 Cloudflare 524 超时
         """
         start_time = time.time()
-
+        
+        # 解析请求数据 (需要在主线程完成)
         try:
-            # 解析请求数据
             topic, images = _parse_outline_request()
-
             log_request('/outline', {'topic': topic, 'images': images})
-
-            # 验证必填参数
+            
             if not topic:
-                logger.warning("大纲生成请求缺少 topic 参数")
-                return jsonify({
-                    "success": False,
-                    "error": "参数错误：topic 不能为空。\n请提供要生成图文的主题内容。"
-                }), 400
-
-            # 调用大纲生成服务
-            logger.info(f"🔄 开始生成大纲，主题: {topic[:50]}...")
-            outline_service = get_outline_service()
-            result = outline_service.generate_outline(topic, images if images else None)
-
-            # 记录结果
-            elapsed = time.time() - start_time
-            if result["success"]:
-                logger.info(f"✅ 大纲生成成功，耗时 {elapsed:.2f}s，共 {len(result.get('pages', []))} 页")
-                return jsonify(result), 200
-            else:
-                logger.error(f"❌ 大纲生成失败: {result.get('error', '未知错误')}")
-                return jsonify(result), 500
+                return Response(
+                    "event: error\ndata: 参数错误：topic 不能为空\n\n", 
+                    mimetype='text/event-stream'
+                )
 
         except Exception as e:
-            import traceback
-            error_trace = traceback.format_exc()
-            log_error('/outline', f"{str(e)}\nStack Trace:\n{error_trace}")
-            
-            error_msg = str(e)
-            return jsonify({
-                "success": False,
-                "error": f"大纲生成异常。\n错误详情: {error_msg}\n建议：检查后端日志获取更多信息"
-            }), 500
+            return Response(
+                f"event: error\ndata: 请求解析失败: {str(e)}\n\n",
+                mimetype='text/event-stream'
+            )
+
+        def generate():
+            executor = ThreadPoolExecutor(max_workers=1)
+            try:
+                # 在线程中运行耗时任务
+                logger.info(f"🔄 开始生成大纲 (后台线程)，主题: {topic[:50]}...")
+                
+                outline_service = get_outline_service()
+                future = executor.submit(outline_service.generate_outline, topic, images if images else None)
+                
+                # 循环等待任务完成，期间发送心跳
+                while not future.done():
+                    yield ": keep-alive\n\n"
+                    time.sleep(5)  # 每5秒发送一次心跳
+                
+                # 获取结果
+                result = future.result()
+                elapsed = time.time() - start_time
+                
+                if result["success"]:
+                    logger.info(f"✅ 大纲生成成功，耗时 {elapsed:.2f}s")
+                    # 序列化结果
+                    json_result = json.dumps(result, ensure_ascii=False)
+                    yield f"event: complete\ndata: {json_result}\n\n"
+                else:
+                    logger.error(f"❌ 大纲生成失败: {result.get('error')}")
+                    error_msg = result.get('error', '未知错误').replace('\n', '\\n')
+                    yield f"event: error\ndata: {error_msg}\n\n"
+
+            except Exception as e:
+                import traceback
+                error_trace = traceback.format_exc()
+                log_error('/outline', f"{str(e)}\nStack Trace:\n{error_trace}")
+                error_msg = str(e).replace('\n', '\\n')
+                yield f"event: error\ndata: 大纲生成异常: {error_msg}\n\n"
+            finally:
+                executor.shutdown(wait=False)
+
+        return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
     return outline_bp
 

@@ -30,36 +30,94 @@ export interface FinishEvent {
   images: string[]
 }
 
-// 生成大纲（支持图片上传）
+// 生成大纲（支持图片上传，SSE 流式响应）
 export async function generateOutline(
   topic: string,
   images?: File[]
 ): Promise<OutlineResponse & { has_images?: boolean }> {
-  // 如果有图片，使用 FormData
+  let headers: Record<string, string> = {}
+  let body: any
+
+  // 构建请求体
   if (images && images.length > 0) {
     const formData = new FormData()
     formData.append('topic', topic)
     images.forEach((file) => {
       formData.append('images', file)
     })
-
-    const response = await axios.post<OutlineResponse & { has_images?: boolean }>(
-      `${API_BASE_URL}/outline`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      }
-    )
-    return response.data
+    body = formData
+    // fetch 会自动设置 multipart/form-data 的 boundary，不需要手动设置 Content-Type
+  } else {
+    headers['Content-Type'] = 'application/json'
+    body = JSON.stringify({ topic })
   }
 
-  // 无图片，使用 JSON
-  const response = await axios.post<OutlineResponse>(`${API_BASE_URL}/outline`, {
-    topic
-  })
-  return response.data
+  try {
+    const response = await fetch(`${API_BASE_URL}/outline`, {
+      method: 'POST',
+      headers,
+      body
+    })
+
+    if (!response.ok) {
+      // 尝试解析错误 JSON
+      try {
+        const errData = await response.json()
+        throw new Error(errData.error || `HTTP error! status: ${response.status}`)
+      } catch {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+    }
+
+    // 处理 SSE 响应
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('无法读取响应流')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+    
+    // 最终结果
+    let finalResult: OutlineResponse & { has_images?: boolean } | null = null
+    let errorMsg = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.trim() || line.startsWith(':')) continue // 忽略注释(keep-alive)
+
+        const [eventLine, dataLine] = line.split('\n')
+        if (!eventLine || !dataLine) continue
+
+        const eventType = eventLine.replace('event: ', '').trim()
+        const eventData = dataLine.replace('data: ', '').trim()
+
+        if (eventType === 'complete') {
+           finalResult = JSON.parse(eventData)
+        } else if (eventType === 'error') {
+           errorMsg = eventData
+        }
+      }
+    }
+
+    if (errorMsg) {
+      return { success: false, error: errorMsg }
+    }
+
+    if (finalResult) {
+      return finalResult
+    }
+    
+    throw new Error('连接中断，未获取到结果')
+
+  } catch (e: any) {
+    return { success: false, error: e.message || '请求失败' }
+  }
 }
 
 // 获取图片 URL（新格式：task_id/filename）

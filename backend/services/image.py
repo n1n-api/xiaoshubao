@@ -52,7 +52,7 @@ class ImageService:
         self.prompt_template = self._load_prompt_template()
         self.prompt_template_short = self._load_prompt_template(short=True)
 
-        # 历史记录根目录
+        # 历史记录根目录 (不再创建本地目录，仅保留路径结构用于逻辑兼容)
         if os.environ.get('VERCEL'):
             self.history_root_dir = "/tmp/history"
         else:
@@ -60,9 +60,10 @@ class ImageService:
                 os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
                 "history"
             )
-        os.makedirs(self.history_root_dir, exist_ok=True)
+        # 移除本地目录创建
+        # os.makedirs(self.history_root_dir, exist_ok=True)
 
-        # 当前任务的输出目录（每个任务一个子文件夹）
+        # 当前任务的输出目录（仅作为逻辑路径）
         self.current_task_dir = None
 
         # 存储任务状态（用于重试）
@@ -84,48 +85,39 @@ class ImageService:
         with open(prompt_path, "r", encoding="utf-8") as f:
             return f.read()
 
-from backend.services.storage import storage_service
-
-    def _save_image(self, image_data: bytes, filename: str, task_dir: str = None) -> str:
+    def _save_image(self, image_data: bytes, filename: str, task_id_or_path: str = None) -> str:
         """
-        保存图片到本地，上传到 R2，同时生成缩略图
+        直接上传图片到 R2
         """
-        if task_dir is None:
-            task_dir = self.current_task_dir
+        from backend.services.storage import storage_service
 
-        if task_dir is None:
-            raise ValueError("任务目录未设置")
+        if task_id_or_path is None:
+            task_id_or_path = self.current_task_dir
 
-        # 1. 保存到本地 (临时文件，用于生成 zip 等)
-        filepath = os.path.join(task_dir, filename)
-        with open(filepath, "wb") as f:
-            f.write(image_data)
+        if task_id_or_path is None:
+            raise ValueError("任务ID未设置")
 
-        # 2. 生成缩略图
-        thumbnail_data = compress_image(image_data, max_size_kb=50)
-        thumbnail_filename = f"thumb_{filename}"
-        thumbnail_path = os.path.join(task_dir, thumbnail_filename)
-        with open(thumbnail_path, "wb") as f:
-            f.write(thumbnail_data)
-            
-        # 3. 上传到 Cloudflare R2 (如果已配置)
-        # 获取 task_id (从路径中提取)
-        task_id = os.path.basename(task_dir)
+        # 获取 task_id (从路径中提取或直接使用)
+        task_id = os.path.basename(task_id_or_path)
         object_name = f"{task_id}/{filename}"
         
         try:
-            # 异步上传或同步上传
-            # 这里使用同步上传以确保可靠性，虽然会增加一点延迟
             # 上传原图
             storage_service.upload_file(image_data, object_name, 'image/png')
-            # 上传缩略图
+            
+            # 生成并上传缩略图
+            thumbnail_data = compress_image(image_data, max_size_kb=50)
+            thumbnail_filename = f"thumb_{filename}"
             thumb_object_name = f"{task_id}/{thumbnail_filename}"
+            
             storage_service.upload_file(thumbnail_data, thumb_object_name, 'image/jpeg')
+            
             logger.info(f"图片已上传到 R2: {object_name}")
+            return object_name # 返回对象键名
+            
         except Exception as e:
-            logger.warning(f"上传图片到 R2 失败: {e}")
-
-        return filepath
+            logger.error(f"上传图片到 R2 失败: {e}")
+            raise Exception(f"图片上传失败: {str(e)}。请检查 R2 配置。")
 
     def _generate_single_image(
         self,
@@ -136,21 +128,12 @@ from backend.services.storage import storage_service
         full_outline: str = "",
         user_images: Optional[List[bytes]] = None,
         user_topic: str = ""
-    ) -> Tuple[int, bool, Optional[str], Optional[str]]:
+    ) -> Tuple[int, bool, Optional[str], Optional[str], Optional[bytes]]:
         """
         生成单张图片（带自动重试）
 
-        Args:
-            page: 页面数据
-            task_id: 任务ID
-            reference_image: 参考图片（封面图）
-            retry_count: 当前重试次数
-            full_outline: 完整的大纲文本
-            user_images: 用户上传的参考图片列表
-            user_topic: 用户原始输入
-
         Returns:
-            (index, success, filename, error_message)
+            (index, success, filename, error_message, image_data)
         """
         index = page["index"]
         page_type = page["type"]
@@ -180,6 +163,7 @@ from backend.services.storage import storage_service
                     )
 
                 # 调用生成器生成图片
+                image_data = None
                 if self.provider_config.get('type') == 'google_genai':
                     logger.debug(f"  使用 Google GenAI 生成器")
                     image_data = self.generator.generate_image(
@@ -192,7 +176,6 @@ from backend.services.storage import storage_service
                 elif self.provider_config.get('type') == 'image_api':
                     logger.debug(f"  使用 Image API 生成器")
                     # Image API 支持多张参考图片
-                    # 组合参考图片：用户上传的图片 + 封面图
                     reference_images = []
                     if user_images:
                         reference_images.extend(user_images)
@@ -215,28 +198,30 @@ from backend.services.storage import storage_service
                         quality=self.provider_config.get('quality', 'standard'),
                     )
 
-                # 保存图片（使用当前任务目录）
+                if not image_data:
+                    raise Exception("生成器返回空数据")
+
+                # 上传到 R2
                 filename = f"{index}.png"
-                self._save_image(image_data, filename, self.current_task_dir)
+                self._save_image(image_data, filename, task_id)
                 logger.info(f"✅ 图片 [{index}] 生成成功: {filename}")
 
-                return (index, True, filename, None)
+                return (index, True, filename, None, image_data)
 
             except Exception as e:
                 error_msg = str(e)
                 logger.warning(f"图片 [{index}] 生成失败 (尝试 {attempt + 1}/{max_retries}): {error_msg[:200]}")
 
                 if attempt < max_retries - 1:
-                    # 等待后重试
                     wait_time = 2 ** attempt
                     logger.debug(f"  等待 {wait_time} 秒后重试...")
                     time.sleep(wait_time)
                     continue
 
                 logger.error(f"❌ 图片 [{index}] 生成失败，已达最大重试次数")
-                return (index, False, None, error_msg)
+                return (index, False, None, error_msg, None)
 
-        return (index, False, None, "超过最大重试次数")
+        return (index, False, None, "超过最大重试次数", None)
 
     def generate_images(
         self,
@@ -248,34 +233,22 @@ from backend.services.storage import storage_service
     ) -> Generator[Dict[str, Any], None, None]:
         """
         生成图片（生成器，支持 SSE 流式返回）
-        优化版本：先生成封面，然后并发生成其他页面
-
-        Args:
-            pages: 页面列表
-            task_id: 任务 ID（可选）
-            full_outline: 完整的大纲文本（用于保持风格一致）
-            user_images: 用户上传的参考图片列表（可选）
-            user_topic: 用户原始输入（用于保持意图一致）
-
-        Yields:
-            进度事件字典
         """
         if task_id is None:
             task_id = f"task_{uuid.uuid4().hex[:8]}"
 
         logger.info(f"开始图片生成任务: task_id={task_id}, pages={len(pages)}")
 
-        # 创建任务专属目录
+        # 设置任务目录路径（仅作为逻辑标识，不创建目录）
         self.current_task_dir = os.path.join(self.history_root_dir, task_id)
-        os.makedirs(self.current_task_dir, exist_ok=True)
-        logger.debug(f"任务目录: {self.current_task_dir}")
+        logger.debug(f"任务逻辑路径: {self.current_task_dir}")
 
         total = len(pages)
         generated_images = []
         failed_pages = []
         cover_image_data = None
 
-        # 压缩用户上传的参考图到200KB以内（减少内存和传输开销）
+        # 压缩用户上传的参考图到200KB以内
         compressed_user_images = None
         if user_images:
             compressed_user_images = [compress_image(img, max_size_kb=200) for img in user_images]
@@ -301,13 +274,11 @@ from backend.services.storage import storage_service
             else:
                 other_pages.append(page)
 
-        # 如果没有封面，使用第一页作为封面
         if cover_page is None and len(pages) > 0:
             cover_page = pages[0]
             other_pages = pages[1:]
 
         if cover_page:
-            # 发送封面生成进度
             yield {
                 "event": "progress",
                 "data": {
@@ -320,23 +291,17 @@ from backend.services.storage import storage_service
                 }
             }
 
-            # 生成封面（使用用户上传的图片作为参考）
-            index, success, filename, error = self._generate_single_image(
+            index, success, filename, error, image_data = self._generate_single_image(
                 cover_page, task_id, reference_image=None, full_outline=full_outline,
                 user_images=compressed_user_images, user_topic=user_topic
             )
 
-            if success:
+            if success and image_data:
                 generated_images.append(filename)
                 self._task_states[task_id]["generated"][index] = filename
 
-                # 读取封面图片作为参考，并立即压缩到200KB以内
-                cover_path = os.path.join(self.current_task_dir, filename)
-                with open(cover_path, "rb") as f:
-                    cover_image_data = f.read()
-
-                # 压缩封面图（减少内存占用和后续传输开销）
-                cover_image_data = compress_image(cover_image_data, max_size_kb=200)
+                # 直接使用内存中的图片数据
+                cover_image_data = compress_image(image_data, max_size_kb=200)
                 self._task_states[task_id]["cover_image"] = cover_image_data
 
                 yield {
@@ -350,7 +315,7 @@ from backend.services.storage import storage_service
                 }
             else:
                 failed_pages.append(cover_page)
-                self._task_states[task_id]["failed"][index] = error
+                self._task_states[task_id]["failed"][index] = error or "Unknown error"
 
                 yield {
                     "event": "error",
@@ -365,11 +330,9 @@ from backend.services.storage import storage_service
 
         # ==================== 第二阶段：生成其他页面 ====================
         if other_pages:
-            # 检查是否启用高并发模式
             high_concurrency = self.provider_config.get('high_concurrency', False)
 
             if high_concurrency:
-                # 高并发模式：并行生成
                 yield {
                     "event": "progress",
                     "data": {
@@ -381,24 +344,21 @@ from backend.services.storage import storage_service
                     }
                 }
 
-                # 使用线程池并发生成
                 with ThreadPoolExecutor(max_workers=self.MAX_CONCURRENT) as executor:
-                    # 提交所有任务
                     future_to_page = {
                         executor.submit(
                             self._generate_single_image,
                             page,
                             task_id,
-                            cover_image_data,  # 使用封面作为参考
-                            0,  # retry_count
-                            full_outline,  # 传入完整大纲
-                            compressed_user_images,  # 用户上传的参考图片（已压缩）
-                            user_topic  # 用户原始输入
+                            cover_image_data,
+                            0,
+                            full_outline,
+                            compressed_user_images,
+                            user_topic
                         ): page
                         for page in other_pages
                     }
 
-                    # 发送每个页面的进度
                     for page in other_pages:
                         yield {
                             "event": "progress",
@@ -411,11 +371,10 @@ from backend.services.storage import storage_service
                             }
                         }
 
-                    # 收集结果
                     for future in as_completed(future_to_page):
                         page = future_to_page[future]
                         try:
-                            index, success, filename, error = future.result()
+                            index, success, filename, error, _ = future.result()
 
                             if success:
                                 generated_images.append(filename)
@@ -461,7 +420,6 @@ from backend.services.storage import storage_service
                                 }
                             }
             else:
-                # 顺序模式：逐个生成
                 yield {
                     "event": "progress",
                     "data": {
@@ -474,7 +432,6 @@ from backend.services.storage import storage_service
                 }
 
                 for page in other_pages:
-                    # 发送生成进度
                     yield {
                         "event": "progress",
                         "data": {
@@ -486,8 +443,7 @@ from backend.services.storage import storage_service
                         }
                     }
 
-                    # 生成单张图片
-                    index, success, filename, error = self._generate_single_image(
+                    index, success, filename, error, _ = self._generate_single_image(
                         page,
                         task_id,
                         cover_image_data,
@@ -525,7 +481,6 @@ from backend.services.storage import storage_service
                             }
                         }
 
-        # ==================== 完成 ====================
         yield {
             "event": "finish",
             "data": {
@@ -549,45 +504,26 @@ from backend.services.storage import storage_service
     ) -> Dict[str, Any]:
         """
         重试生成单张图片
-
-        Args:
-            task_id: 任务ID
-            page: 页面数据
-            use_reference: 是否使用封面作为参考
-            full_outline: 完整大纲文本（从前端传入）
-            user_topic: 用户原始输入（从前端传入）
-
-        Returns:
-            生成结果
         """
+        # 仅作为逻辑标识
         self.current_task_dir = os.path.join(self.history_root_dir, task_id)
-        os.makedirs(self.current_task_dir, exist_ok=True)
 
         reference_image = None
         user_images = None
 
-        # 首先尝试从任务状态中获取上下文
         if task_id in self._task_states:
             task_state = self._task_states[task_id]
             if use_reference:
                 reference_image = task_state.get("cover_image")
-            # 如果没有传入上下文，则使用任务状态中的
             if not full_outline:
                 full_outline = task_state.get("full_outline", "")
             if not user_topic:
                 user_topic = task_state.get("user_topic", "")
             user_images = task_state.get("user_images")
 
-        # 如果任务状态中没有封面图，尝试从文件系统加载
-        if use_reference and reference_image is None:
-            cover_path = os.path.join(self.current_task_dir, "0.png")
-            if os.path.exists(cover_path):
-                with open(cover_path, "rb") as f:
-                    cover_data = f.read()
-                # 压缩封面图到 200KB
-                reference_image = compress_image(cover_data, max_size_kb=200)
-
-        index, success, filename, error = self._generate_single_image(
+        # 移除回退到本地文件系统的逻辑
+        
+        index, success, filename, error, _ = self._generate_single_image(
             page,
             task_id,
             reference_image,
@@ -623,15 +559,7 @@ from backend.services.storage import storage_service
     ) -> Generator[Dict[str, Any], None, None]:
         """
         批量重试失败的图片
-
-        Args:
-            task_id: 任务ID
-            pages: 需要重试的页面列表
-
-        Yields:
-            进度事件
         """
-        # 获取参考图
         reference_image = None
         if task_id in self._task_states:
             reference_image = self._task_states[task_id].get("cover_image")
@@ -648,8 +576,6 @@ from backend.services.storage import storage_service
             }
         }
 
-        # 并发重试
-        # 从任务状态中获取完整大纲
         full_outline = ""
         if task_id in self._task_states:
             full_outline = self._task_states[task_id].get("full_outline", "")
@@ -661,8 +587,8 @@ from backend.services.storage import storage_service
                     page,
                     task_id,
                     reference_image,
-                    0,  # retry_count
-                    full_outline  # 传入完整大纲
+                    0,
+                    full_outline
                 ): page
                 for page in pages
             }
@@ -670,7 +596,7 @@ from backend.services.storage import storage_service
             for future in as_completed(future_to_page):
                 page = future_to_page[future]
                 try:
-                    index, success, filename, error = future.result()
+                    index, success, filename, error, _ = future.result()
 
                     if success:
                         success_count += 1
@@ -729,19 +655,7 @@ from backend.services.storage import storage_service
         full_outline: str = "",
         user_topic: str = ""
     ) -> Dict[str, Any]:
-        """
-        重新生成图片（用户手动触发，即使成功的也可以重新生成）
-
-        Args:
-            task_id: 任务ID
-            page: 页面数据
-            use_reference: 是否使用封面作为参考
-            full_outline: 完整大纲文本
-            user_topic: 用户原始输入
-
-        Returns:
-            生成结果
-        """
+        """重新生成图片"""
         return self.retry_single_image(
             task_id, page, use_reference,
             full_outline=full_outline,
@@ -749,16 +663,7 @@ from backend.services.storage import storage_service
         )
 
     def get_image_path(self, task_id: str, filename: str) -> str:
-        """
-        获取图片完整路径
-
-        Args:
-            task_id: 任务ID
-            filename: 文件名
-
-        Returns:
-            完整路径
-        """
+        """获取图片逻辑路径（已废弃本地访问，仅返回逻辑路径）"""
         task_dir = os.path.join(self.history_root_dir, task_id)
         return os.path.join(task_dir, filename)
 
@@ -767,7 +672,7 @@ from backend.services.storage import storage_service
         return self._task_states.get(task_id)
 
     def cleanup_task(self, task_id: str):
-        """清理任务状态（释放内存）"""
+        """清理任务状态"""
         if task_id in self._task_states:
             del self._task_states[task_id]
 
@@ -783,6 +688,6 @@ def get_image_service() -> ImageService:
     return _service_instance
 
 def reset_image_service():
-    """重置全局服务实例（配置更新后调用）"""
+    """重置全局服务实例"""
     global _service_instance
     _service_instance = None

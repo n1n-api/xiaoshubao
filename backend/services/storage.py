@@ -59,8 +59,8 @@ class StorageService:
             str: 文件的访问 URL
         """
         if not self.s3_client:
-            logger.warning("R2 未配置，跳过上传")
-            return ""
+            logger.error("R2 未配置，无法上传文件")
+            raise Exception("R2存储服务未配置。请在设置中配置 Cloudflare R2 相关信息。")
 
         try:
             self.s3_client.put_object(

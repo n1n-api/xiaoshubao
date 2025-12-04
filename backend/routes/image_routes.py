@@ -109,62 +109,40 @@ def create_image_blueprint():
         """
         获取图片文件
         
-        优先尝试重定向到 R2 存储的图片，如果 R2 未配置或图片不存在，则回退到本地
+        强制重定向到 R2 存储 URL
         """
         try:
             # 检查是否请求缩略图
             thumbnail = request.args.get('thumbnail', 'true').lower() == 'true'
             
-            # 1. 尝试构建 R2 URL 并重定向
             from backend.services.storage import storage_service
             
-            if storage_service.config.get('endpoint_url') and storage_service.config.get('bucket_name'):
-                # 构建对象键名
-                object_name = f"{task_id}/{filename}"
-                if thumbnail:
-                    object_name = f"{task_id}/thumb_{filename}"
-                
-                # 如果配置了公共域名，直接重定向到公共域名
-                if storage_service.config.get('public_domain'):
-                    domain = storage_service.config['public_domain'].rstrip('/')
-                    r2_url = f"{domain}/{object_name}"
-                    return jsonify({
-                        "redirect": True, 
-                        "url": r2_url
-                    }), 302
-                
-                # 否则尝试使用预签名URL (或者直接返回图片内容如果是非公共)
-                # 这里简化处理：如果配置了 endpoint_url，尝试构建公共访问链接
-                # 注意：如果 bucket 是私有的，这可能无法访问
-                r2_url = f"{storage_service.config['endpoint_url']}/{storage_service.config['bucket_name']}/{object_name}"
-                # return redirect(r2_url) # 302重定向
-            
-            # 2. 回退到本地文件系统 (适用于本地开发或刚刚生成尚未上传的情况)
-            logger.debug(f"获取本地图片: {task_id}/{filename}")
-
-            # 构建 history 目录路径
-            if os.environ.get('VERCEL'):
-                history_root = "/tmp/history"
-            else:
-                history_root = os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                    "history"
-                )
-
-            if thumbnail:
-                thumb_filename = f"thumb_{filename}"
-                thumb_filepath = os.path.join(history_root, task_id, thumb_filename)
-                if os.path.exists(thumb_filepath):
-                    return send_file(thumb_filepath, mimetype='image/png')
-
-            filepath = os.path.join(history_root, task_id, filename)
-            if not os.path.exists(filepath):
+            if not storage_service.config.get('endpoint_url') or not storage_service.config.get('bucket_name'):
                 return jsonify({
                     "success": False,
-                    "error": f"图片不存在：{task_id}/{filename}"
-                }), 404
+                    "error": "存储服务未配置。请在设置中配置 Cloudflare R2。"
+                }), 500
 
-            return send_file(filepath, mimetype='image/png')
+            # 构建对象键名
+            object_name = f"{task_id}/{filename}"
+            if thumbnail:
+                object_name = f"{task_id}/thumb_{filename}"
+            
+            # 如果配置了公共域名，直接重定向到公共域名
+            if storage_service.config.get('public_domain'):
+                domain = storage_service.config['public_domain'].rstrip('/')
+                r2_url = f"{domain}/{object_name}"
+                return jsonify({
+                    "redirect": True, 
+                    "url": r2_url
+                }), 302
+            
+            # 否则重定向到 R2 默认域名 (注意：通常需要 Bucket 设置为 Public)
+            r2_url = f"{storage_service.config['endpoint_url']}/{storage_service.config['bucket_name']}/{object_name}"
+            return jsonify({
+                "redirect": True, 
+                "url": r2_url
+            }), 302
 
         except Exception as e:
             log_error('/images', e)

@@ -24,8 +24,9 @@ class HistoryService:
         # 确保表存在
         Base.metadata.create_all(self.engine)
 
-        # 仍然需要 history 目录来存储图片文件 (Vercel 环境下这依然是临时的)
-        # 长期方案：图片应该上传到 S3 / R2 / OSS
+        # 历史记录目录配置
+        # 注意：在 R2 存储模式下，本地 history 目录仅作为逻辑路径或临时缓存（如果需要）
+        # 不再强制创建本地目录用于持久化存储
         if os.environ.get('VERCEL'):
             self.history_dir = "/tmp/history"
         else:
@@ -33,7 +34,7 @@ class HistoryService:
                 os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
                 "history"
             )
-        os.makedirs(self.history_dir, exist_ok=True)
+        # os.makedirs(self.history_dir, exist_ok=True)
 
     def create_record(
         self,
